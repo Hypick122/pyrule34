@@ -36,10 +36,10 @@ class Stats:
 
     async def _get_stats(self, name: Optional[str] = None) -> List[R34Stats]:  # "Generator[R34Stats]"
         """
-        Get the top taggers
+        Get the top users
 
         :param name: Top 10 taggers | Top 10 commenters | Top 10 forum posters | Top 10 image posters | Top 10 note editors | Top 10 favoriters
-        :return: A list of top taggers
+        :return: A list of top users
         """
         records = []
         async with self.session.get(self.url + "?page=stats") as response:
@@ -91,11 +91,11 @@ class AsyncRule34:
             page_id: Optional[int] = 0,
     ) -> List[R34Post]:
         """
-        Search for posts with specified inclusion and exclusion tags.
+        Search for posts using specified inclusion and exclusion tags.
 
         :param tags: The include tags
         :param exclude_tags: The exclude tags
-        :param limit: The (maximum) limit to get posts. Maximum - 1000 per request
+        :param limit: The (maximum) limit to get posts. Maximum 1000 per one request
         :param page_id: The page number
         :return: A list of posts
         """
