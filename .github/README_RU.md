@@ -1,11 +1,12 @@
-PyRule34 ![GitHub](https://img.shields.io/github/license/Hypick122/pyrule34) [![](https://img.shields.io/pypi/v/pyrule34)](https://pypi.org/project/pyrule34/)
+PyRule34 ![GitHub](https://img.shields.io/github/license/Hypick122/pyrule34)
 =============================
 ### <strong>Русский | <a href="https://github.com/Hypick122/pyrule34/blob/master/README.md"> English </a></strong>
 Это легкая асинхронная библиотека для API [rule34](rule34.xxx)
 
-## Установить ![Downloads](https://pepy.tech/badge/pyrule34)
+Установить [![Downloads](https://pepy.tech/badge/pyrule34)](https://pepy.tech/project/pyrule34)
+-------------
 Для библиотеки нужен Python 3.5 или выше
-- Последняя версия на PyPI: [`1.0.0`](https://pypi.org/project/pyrule34/1.0.0/)
+- Последняя версия на PyPI: [`1.1.0`](https://pypi.org/project/pyrule34/1.1.0/)
 ```sh
 pip install -U pyrule34
 ```
@@ -22,9 +23,9 @@ AsyncRule34 можно использовать в виде контекстог
 #пример
 async def main():
     async with AsyncRule34() as r34:
-        get_post = await r34.get_post(4931536)
+        get_posts = await r34.get_posts(4931536)
         
-        print(get_post[0].tags)
+        print(get_posts[0].tags)
         
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
@@ -37,9 +38,9 @@ loop.run_until_complete(main())
 
 Параметры:
 - `tags` - Включаемые теги
-- `exclude_tags` - Теги исключения
-- `limit` - (Максимальный) лимит на получение сообщений. Максимум 1000 за один запрос
-- `page_id` - Номер страницы
+- `exclude_tags` - Теги исключения (по умолчанию: None)
+- `limit` - (Максимальный) лимит на получение сообщений. Максимум 1000 за один запрос (по умолчанию: 100)
+- `page_id` - Номер страницы (по умолчанию: 0)
 ```python
 search = await r34.search(tags=["neko"], exclude_tags=["rating:general"], page_id=2, limit=1)
 ```
@@ -50,9 +51,9 @@ search = await r34.search(tags=["neko"], exclude_tags=["rating:general"], page_i
 
 Параметры:
 - `posts_id`: Список ID постов или ID поста
-- `md5`: Хэш MD5 поста
+- `md5`: Хэш MD5 поста (по умолчанию: None)
 ```python
-get_post = await r34.get_post(4931536)
+get_posts = await r34.get_posts(4931536)
 ```
 ### Комментарии к посту
 Получить комментарии по ID поста.
@@ -60,7 +61,7 @@ get_post = await r34.get_post(4931536)
 Возвращает список.
 
 Параметры:
-- `post_id`: ID поста.
+- `post_id`: ID поста
 ```python
 get_post_comments = await r34.get_post_comments(4153825)
 ```
@@ -70,6 +71,28 @@ get_post_comments = await r34.get_post_comments(4153825)
 Возвращает словарь.
 ```python
 get_random_post = await r34.get_random_post()
+```
+### Пул
+Получить пул по ID.
+
+Возвращает список.
+
+Параметры:
+- `cid`: ID пула
+- `offset`: смещение (по умолчанию: 0) | 1 страница - 45
+```python
+get_pool = await r34.get_pool(29619)
+```
+### Избранное пользователя
+Получить избранное пользователя по ID
+
+Возвращает список.
+
+Параметры:
+- `user_id`: ID пользователя
+- `offset`: смещение (по умолчанию: 0) | 1 страница - 50
+```python
+favorite = await r34.users.favorites(2993217)
 ```
 ### Топ 100 персонажей и тегов
 Получить 100 лучших персонажей или тегов.

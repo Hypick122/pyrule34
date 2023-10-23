@@ -1,8 +1,9 @@
 import aiohttp
+import re
+import logging
 from typing import Iterable, ClassVar
 from bs4 import BeautifulSoup
-import urllib.parse as urlparse
-from urllib.parse import parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 from .objects import *
 
@@ -13,18 +14,46 @@ class Users:
         self.url = base_url
         self.api_url = api_url
 
-    async def user_favorite(
+    async def favorites(
             self,
-            user_id: Optional[int]
-    ) -> None:
-        url = self.url + f"?page=favorites&s=view&id={user_id}"
-        raise RuntimeError("The function is not ready yet.")
+            user_id: Optional[int],
+            offset: Optional[int] = 0  # page - 50
+    ) -> List[UserFavorite]:
+        """
+        Get user's favorites by ID
 
-    async def user_page(
+        :param user_id: User ID
+        :param offset:
+        :return: A list
+        """
+        async with self.session.get(self.url + f"?page=favorites&s=view&id={user_id}&pid={offset}") as response:
+            soup = BeautifulSoup(await response.content.read(), features="html.parser")
+
+            # if soup.find(id="content").find("h1") is not None:  # <h1>You have no favorites.</h1>
+            #     return []
+            records = []
+
+            posts = soup.find(id="content").find_all('script', type="text/javascript")
+            for script in posts:
+                post_id = re.search("posts\[(\d+)\]", script.text, re.DOTALL)  # re.findall("posts\[(\d+)\]", script.text)
+                if post_id:
+                    tags = re.search("{'tags':'(.*?)'", script.text, re.DOTALL)
+                    rating = re.search("'rating':'(.*?)'", script.text, re.DOTALL)
+                    score = re.search("'score':(\d+)", script.text, re.DOTALL)
+                    user = re.search("'user':'(.*?)'", script.text, re.DOTALL)
+
+                    records.append(UserFavorite(post_id.group(1), unquote(tags.group(1)).split(), rating.group(1), score.group(1), user.group(1)))
+
+            return records
+
+    async def info(
             self,
             user_id: Optional[int]
     ) -> None:
-        url = self.url + f"?page=account&s=profile&id={user_id}"
+        # async with self.session.get(self.url + f"?page=account&s=profile&id={user_id}") as response:
+        #     soup = BeautifulSoup(await response.content.read(), features="html.parser")
+        #     print(soup.find_all(id="content"))
+        #     print(soup.select("content > table"))
         raise RuntimeError("The function is not ready yet.")
 
 
@@ -42,9 +71,10 @@ class Stats:
         :return: A list of top users
         """
         records = []
+
         async with self.session.get(self.url + "?page=stats") as response:
-            tables = BeautifulSoup(await response.content.read(), features="html.parser").select(".toptencont > table")
-            for table in tables:
+            soup = BeautifulSoup(await response.content.read(), features="html.parser")
+            for table in soup.select(".toptencont > table"):
                 if table.select("thead > tr")[0].get_text(strip=True) == name:
                     for tr in table.find("tbody").find_all("tr"):
                         tds = tr.find_all("td")
@@ -99,7 +129,9 @@ class AsyncRule34:
         :param page_id: The page number
         :return: A list of posts
         """
-        # if 0 > limit > 1000:
+        if limit > 1000 or limit <= 0:
+            logging.warning("      The value of the \"limit\" parameter should not be less than 0 or more than 1000.")
+
         url = self.api_url + '&tags=' + self._format_tags(tags, exclude_tags) + f'&limit={limit}&s=post'
 
         if page_id:
@@ -113,7 +145,7 @@ class AsyncRule34:
 
         return list([R34Post.from_json(post) for post in json])
 
-    async def get_post(
+    async def get_posts(
             self,
             posts_id: Optional[Union[list, int]],
             md5: Optional[str] = None
@@ -129,7 +161,7 @@ class AsyncRule34:
             posts_id = [posts_id]
 
         if (posts_id and md5) or (not posts_id and not md5):
-            raise ValueError("You must specify the post(s) ID or md5, but not both.")
+            logging.warning("      You must specify the post(s) ID or md5, but not both. Only the hash is taken if they are specified together.")
 
         posts = []
 
@@ -138,13 +170,34 @@ class AsyncRule34:
             async with self.session.get(url) as response:
                 for post in await response.json():
                     res = R34Post.from_json(post)
-                    posts.extend([f"md5 post (post_id: {post_id}) != md5"] if md5 and res.md5 != md5 else list([res]))
+                    posts.extend([f"md5 post (post_id: {post_id}) != md5"] if md5 and res.hash != md5 else list([res]))
 
         return posts
 
-    async def get_pool(self) -> None:
-        url = self.url + "?page=pool&s=show&id={page_id}"
-        raise RuntimeError("The function is not ready yet.")
+    async def get_pool(
+            self,
+            cid: Optional[int],
+            offset: Optional[int] = 0  # page - 45
+    ) -> List[R34Pool]:
+        """
+        Get Pool by ID.
+
+        :param cid: Pool ID
+        :param offset:
+        :return: A list
+        """
+        records = []
+        async with self.session.get(self.url + f"?page=pool&s=show&id={cid}&pid={offset}") as response:
+            soup = BeautifulSoup(await response.content.read(), features="html.parser")
+            for div in soup.find_all("span", class_="thumb"):
+                post_id = int(div["id"][1:])
+                href = "https://rule34.xxx/" + div.find("a")["href"]
+                src = div.find("img")["src"]  # thumbnails
+                tags = div.find("img")["title"].split()  # div.find("img")["alt"]
+
+                records.append(R34Pool(post_id, href, src, tags))
+
+        return records
 
     async def get_post_comments(
             self,
@@ -160,8 +213,8 @@ class AsyncRule34:
         url = self.api_url + f"&s=comment&post_id={post_id}"  # returns: XML
 
         async with self.session.get(url) as response:
-            bfs_raw = BeautifulSoup(await response.content.read(), features="xml")
-            res_xml = bfs_raw.comments.findAll('comment')
+            soup = BeautifulSoup(await response.content.read(), features="xml")
+            res_xml = soup.comments.findAll('comment')
 
             return [R34PostComment(**dict(comment.attrs)) for comment in res_xml]
 
@@ -174,9 +227,8 @@ class AsyncRule34:
         url = self.url + "?page=post&s=random"
 
         async with self.session.get(url) as response:
-            parsed = urlparse.urlparse(str(response.url))
-
-            return await self.get_post(int(parse_qs(parsed.query)['id'][0]))
+            parsed = urlparse(str(response.url))
+            return await self.get_posts(int(parse_qs(parsed.query)['id'][0]))
 
     # search_tags, get_tag
 
@@ -189,8 +241,8 @@ class AsyncRule34:
         url = self.url + "?page=icame"
 
         async with self.session.get(url) as response:
-            bfs_raw = BeautifulSoup(await response.content.read(), features="html.parser")
-            rows = bfs_raw.find("table", border=1).find("tbody").find_all("tr")
+            soup = BeautifulSoup(await response.content.read(), features="html.parser")
+            rows = soup.find("table", border="1").find("tbody").find_all("tr")
 
             return [R34TopCharacters(row.select('td > a', href=True)[0].get_text(strip=True), row.select('td')[1].get_text(strip=True)) for row in rows if row]
 
@@ -203,8 +255,8 @@ class AsyncRule34:
         url = self.url + "?page=toptags"
 
         async with self.session.get(url) as response:
-            bfs_raw = BeautifulSoup(await response.content.read(), features="html.parser")
-            rows = bfs_raw.find("table", class_="server-assigns").find_all("tr")[2:]
+            soup = BeautifulSoup(await response.content.read(), features="html.parser")
+            rows = soup.find("table", class_="server-assigns").find_all("tr")[2:]
 
             return [R34TopTag(rank=tag[0].string[1:], name=tag[1].string, percentage=tag[2].string[:-1]) for tag in (row.find_all("td") for row in rows)]
 

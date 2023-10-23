@@ -63,6 +63,14 @@ class R34Post:
 
 
 @dataclass(init=True, frozen=True)
+class R34Pool:
+    id: Optional[int]
+    link: Optional[str]
+    thumbnails: Optional[str]
+    tags: Optional[str]
+
+
+@dataclass(init=True, frozen=True)
 class R34PostComment:
     created_at: Optional[str]
     post_id: Optional[int]
@@ -103,3 +111,12 @@ class R34TopTag:
             dct["tagname"],
             dct["percentage"] * 100
         )
+
+
+@dataclass(init=True, frozen=True)
+class UserFavorite:
+    id: Optional[int]
+    tags: Optional[str]
+    rating: Optional[str]
+    score: Optional[int]
+    user: Optional[str]

@@ -5,7 +5,7 @@ with open("README.md", "r") as file:
     long_description = file.read()
 
 name = "pyrule34"  # R34API
-version = "1.0.0"
+version = "1.1.0"
 description = "Asynchronous wrapper for rule34.xxx."
 keywords = ["async rule34", "rule34 api", "wrapper"]
 
@@ -35,7 +35,8 @@ project_urls = {
 
 install_requires = [
     "aiohttp >= 3.8.6",
-    "beautifulsoup4 >= 4.12.2",  # 4.9.3
+    "beautifulsoup4 >= 4.12.2",
+    "lxml >= 4.9.3"
 ]
 
 if __name__ == "__main__":
